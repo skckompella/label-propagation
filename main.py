@@ -2,6 +2,8 @@ import scipy.io
 import numpy as np
 from sklearn import neighbors
 from sklearn.neighbors import kneighbors_graph
+import matplotlib.pyplot as plt
+import sys
 
 def check_accuracy(predicted_labels, given_labels, initially_labeled=0):
     right_predictions = np.sum(predicted_labels == given_labels)
@@ -36,8 +38,29 @@ def knn(feature_mat, labels, ids):
     return predictions
 
 
-## Main##
+def moons_dataset():
+    moons = scipy.io.loadmat('2moons.mat')
+    moon_ft = moons['x']
+    moon_labels = moons['y']
+    moon_labels_select = moon_labels[:10]
+    affinity_mat = kneighbors_graph(moon_ft, 5, mode='connectivity', include_self=True).toarray()
+    affinity_mat = affinity_mat + affinity_mat.transpose()  ## To make the matrix symmetric
+    affinity_mat[np.nonzero(affinity_mat)] = 1  ## any non zero value has to be 1
+    row_sums = affinity_mat.sum(axis=1)
+    row_sum_diag_mat = np.diag(row_sums)
+    rand_walk_mat = np.linalg.inv(row_sum_diag_mat).dot(affinity_mat)
+    Y = label_propagate(rand_walk_mat, moon_labels, range(0,10))
+    y = moons['x'][:, 1].transpose()
+    x = moons['x'][:, 0].transpose()
+    plt.scatter(x, y, c=Y)
+    plt.show()
+    print check_accuracy(Y, moon_labels )
+    #return moons_ft, moon_labels_select
 
+
+## Main##
+#moons_dataset()
+#sys.exit()
 data = scipy.io.loadmat('SSL,set=9,data.mat')
 feature_mat = data['X'].toarray()
 labels = data["y"]
@@ -64,7 +87,9 @@ for split in labeled_ids: #Each split is a sequence of label IDs
     knn_predictions = knn(feature_mat, labels, split)
     knn_accuracy.append(check_accuracy(knn_predictions, labels[10:], 10))
 
+
+
 print "Label proagation accuracy: "
-print lp_accuracy
+print np.mean(lp_accuracy)
 print "KNN Accuracy: "
-print knn_accuracy
+print np.mean(knn_accuracy)
